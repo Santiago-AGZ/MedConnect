@@ -55,14 +55,14 @@ export default function History() {
             <Link to="/schedule"><Button size="sm">Agendar cita</Button></Link>
           </div>
         ) : upcoming.map(a => (
-          <div key={a.id} className="appointment-card mb-3">
-            <div className="appointment-avatar"><UserRound size={22} className="text-primary" /></div>
+          <div key={a.id} className="flex flex-wrap items-center gap-3 sm:gap-4 py-3 px-4 sm:px-5 bg-white border border-border rounded-lg mb-3">
+            <div className="appointment-avatar shrink-0"><UserRound size={22} className="text-primary" /></div>
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-sm text-text">{a.doctors?.name}</div>
               <div className="text-xs text-secondary">{a.doctors?.specialty} &middot; {a.date} {a.time}</div>
             </div>
-            <span className="badge badge-upcoming">Próxima</span>
-            <div className="flex gap-2">
+            <span className="badge badge-upcoming shrink-0">Próxima</span>
+            <div className="flex gap-2 w-full sm:w-auto">
               <button className="text-xs text-secondary font-medium px-2 py-1 rounded bg-transparent border-none cursor-pointer hover:bg-bg">Reagendar</button>
               <button onClick={() => handleCancel(a.id)} className="text-xs text-error font-medium px-2 py-1 rounded bg-transparent border-none cursor-pointer hover:bg-error-light">Cancelar</button>
             </div>

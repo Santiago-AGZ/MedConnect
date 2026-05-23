@@ -56,7 +56,7 @@ export default function Schedule() {
         <div className="bg-surface border border-border rounded-lg p-6 mb-5">
           <h2 className="text-base font-semibold mb-1 text-text">Fecha y hora</h2>
           <p className="text-xs text-secondary mb-4">Selecciona el día y horario disponibles.</p>
-          <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold mb-1.5 text-text">Fecha de la cita</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)} required

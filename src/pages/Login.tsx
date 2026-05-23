@@ -19,7 +19,7 @@ export default function Login() {
 
   return (
     <div className="flex items-center justify-center py-16 px-6">
-      <div className="w-full max-w-sm bg-surface border border-border rounded-lg shadow-md p-10">
+      <div className="w-full max-w-sm bg-surface border border-border rounded-lg shadow-md p-6 sm:p-10">
         <div className="flex items-center justify-center gap-2 mb-4">
           <HeartPulse size={24} className="text-primary" />
           <span className="text-lg font-bold text-primary">MedConnect</span>

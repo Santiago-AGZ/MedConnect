@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { completeAppointment, saveChatMessage, getChatMessages } from '../lib/api'
+import { supabase } from '../lib/api'
 import { UserRound, Mic, MicOff, Camera, CameraOff, Lightbulb, PhoneOff, Bot, Circle, Send } from 'lucide-react'
+import html2pdf from 'html2pdf.js'
 
 export default function VideoCall() {
   const localVideo = useRef<HTMLVideoElement>(null)
@@ -233,8 +235,62 @@ export default function VideoCall() {
 
   const endCall = () => {
     stopCamera()
+    generatePDF()
     if (lastApp?.id) completeAppointment(lastApp.id).then(() => navigate('/history'))
     else navigate('/history')
+  }
+
+  const generatePDF = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data: profile } = await supabase.from('profiles').select('name').eq('id', user?.id).single()
+      const patientName = profile?.name || user?.email?.split('@')[0] || 'Paciente'
+      const now = new Date()
+      const dateStr = now.toLocaleDateString('es-CO')
+      const timeStr = elapsed >= 3600
+        ? `${Math.floor(elapsed / 3600)}h ${Math.floor((elapsed % 3600) / 60)}m`
+        : `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`
+
+      const msgs = chatMessages.filter(m => m.text !== 'Pensando...')
+
+      const el = document.createElement('div')
+      el.innerHTML = `
+<div style="font-family:Arial,sans-serif;padding:40px;color:#1E293B;max-width:700px;margin:0 auto;">
+<div style="border-bottom:3px solid #0D9488;padding-bottom:16px;margin-bottom:24px;">
+  <h1 style="color:#0D9488;font-size:24px;margin:0;">MedConnect</h1>
+  <p style="color:#64748B;font-size:15px;margin:4px 0 0;">Resumen de consulta medica</p>
+</div>
+<div style="margin-bottom:20px;">
+  <h3 style="font-size:13px;text-transform:uppercase;color:#94A3B8;letter-spacing:1px;margin:0 0 8px;">Informacion del paciente</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <tr><td style="color:#64748B;width:130px;padding:6px 0;border-bottom:1px solid #E2E8F0;font-weight:500;">Nombre</td><td style="padding:6px 0;border-bottom:1px solid #E2E8F0;">${patientName}</td></tr>
+    <tr><td style="color:#64748B;width:130px;padding:6px 0;border-bottom:1px solid #E2E8F0;font-weight:500;">Fecha</td><td style="padding:6px 0;border-bottom:1px solid #E2E8F0;">${dateStr}</td></tr>
+    <tr><td style="color:#64748B;width:130px;padding:6px 0;border-bottom:1px solid #E2E8F0;font-weight:500;">Duracion</td><td style="padding:6px 0;border-bottom:1px solid #E2E8F0;">${timeStr}</td></tr>
+  </table>
+</div>
+<div style="margin-bottom:20px;">
+  <h3 style="font-size:13px;text-transform:uppercase;color:#94A3B8;letter-spacing:1px;margin:0 0 8px;">Informacion medica</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <tr><td style="color:#64748B;width:130px;padding:6px 0;border-bottom:1px solid #E2E8F0;font-weight:500;">Medico</td><td style="padding:6px 0;border-bottom:1px solid #E2E8F0;">${doctor.name}</td></tr>
+    <tr><td style="color:#64748B;width:130px;padding:6px 0;border-bottom:1px solid #E2E8F0;font-weight:500;">Especialidad</td><td style="padding:6px 0;border-bottom:1px solid #E2E8F0;">${doctor.specialty}</td></tr>
+    <tr><td style="color:#64748B;width:130px;padding:6px 0;border-bottom:1px solid #E2E8F0;font-weight:500;">Motivo</td><td style="padding:6px 0;border-bottom:1px solid #E2E8F0;">${lastApp?.reason || 'No especificado'}</td></tr>
+  </table>
+</div>
+${msgs.length > 0 ? `<div style="margin-bottom:20px;">
+  <h3 style="font-size:13px;text-transform:uppercase;color:#94A3B8;letter-spacing:1px;margin:0 0 8px;">Resumen de la consulta</h3>
+  ${msgs.map(m => `<div style="padding:8px 12px;margin:4px 0;border-radius:6px;font-size:13px;${m.role === 'assistant' ? 'background:#F0FDFA;border-left:3px solid #0D9488;' : 'background:#F1F5F9;border-left:3px solid #64748B;'}"><strong>${m.role === 'assistant' ? 'Asistente' : 'Paciente'}:</strong> ${m.text}</div>`).join('')}
+</div>` : ''}
+<div style="background:#FFFBEB;border:1px solid #FDE68A;padding:12px;border-radius:6px;font-size:11px;color:#92400E;margin:16px 0;">
+  Este resumen lo genera MedConnect de forma automatica. No reemplaza la historia clinica oficial ni lo que diga tu medico. Consulta con el para un diagnostico profesional.
+</div>
+<div style="margin-top:32px;padding-top:16px;border-top:1px solid #E2E8F0;font-size:11px;color:#94A3B8;text-align:center;">
+  <p style="margin:2px 0;">MedConnect - Plataforma de Teleconsulta Medica Accesible</p>
+  <p style="margin:2px 0;">Documento generado el ${dateStr}</p>
+</div></div>`
+
+      document.body.appendChild(el)
+      html2pdf().set({ margin: 10, filename: `Resumen_MedConnect_${now.getTime()}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(el).save().then(() => el.remove())
+    } catch (e) { /* silencioso */ }
   }
 
   const CtrlBtn = ({ onClick, active, icon: Icon, label }: { onClick: () => void; active?: boolean; icon: any; label: string }) => (
@@ -255,7 +311,7 @@ export default function VideoCall() {
       </div>
 
       <div className="bg-surface border border-border rounded-lg overflow-hidden">
-        <div className="bg-[#1a1a2e] min-h-[340px] flex items-center justify-center relative">
+        <div className="bg-[#1a1a2e] min-h-[280px] sm:min-h-[340px] flex items-center justify-center relative">
           {cameraOn ? (
             <video ref={localVideo} autoPlay muted playsInline className="w-full h-full object-cover max-h-[400px]" />
           ) : (
