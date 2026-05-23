@@ -234,7 +234,7 @@ ${content}
       </Dialog>
 
       {confirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6" onClick={() => setConfirm(null)}
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6 cursor-pointer" onClick={() => setConfirm(null)}
           role="dialog" aria-modal="true" aria-labelledby="confirm-title">
           <div className="bg-white rounded-xl p-8 max-w-sm w-full text-center shadow-lg cursor-default" onClick={e => e.stopPropagation()}>
             <div className="w-12 h-12 rounded-full bg-error-light flex items-center justify-center mx-auto mb-4">

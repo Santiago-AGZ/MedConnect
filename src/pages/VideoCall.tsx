@@ -259,7 +259,7 @@ export default function VideoCall() {
       </div>
 
       <div className="bg-surface border border-border rounded-lg overflow-hidden">
-        <div className="bg-[#1a1a2e] min-h-[280px] sm:min-h-[340px] flex items-center justify-center relative">
+        <div className="bg-video-bg min-h-[280px] sm:min-h-[340px] flex items-center justify-center relative">
           {cameraOn ? (
             <video ref={localVideo} autoPlay muted playsInline className="w-full h-full object-cover max-h-[400px]" />
           ) : (
@@ -280,7 +280,7 @@ export default function VideoCall() {
               <p className="text-xs text-white/40 mt-3">Presiona el botón para iniciar la videollamada</p>
             </div>
           )}
-          <div className="absolute bottom-4 right-3 w-28 h-20 bg-[#2d2d44] rounded border border-white/10 flex items-center justify-center text-xs text-white/40">
+          <div className="absolute bottom-4 right-3 w-28 h-20 bg-video-pip rounded border border-white/10 flex items-center justify-center text-xs text-white/40">
             <CameraOff size={12} className="mr-1.5" /> Tu video
           </div>
         </div>
@@ -299,15 +299,15 @@ export default function VideoCall() {
           <div className="mx-3 mb-3 border border-border rounded-lg overflow-hidden">
             <div className="max-h-48 overflow-y-auto">
               {chatMessages.map((msg, i) => (
-                <div key={i} className={`p-3 text-sm flex gap-2 ${msg.role === 'user' ? 'bg-white border-b border-border' : 'bg-green-50 border-b border-green-200'}`}>
+                <div key={i} className={`p-3 text-sm flex gap-2 ${msg.role === 'user' ? 'bg-white border-b border-border' : 'bg-success-light border-b border-success/30'}`}>
                   {msg.role === 'user' ? (
                     <UserRound size={16} className="flex-shrink-0 mt-0.5 text-secondary" />
                   ) : (
-                    <Bot size={16} className="flex-shrink-0 mt-0.5 text-green-600" />
+                    <Bot size={16} className="flex-shrink-0 mt-0.5 text-success" />
                   )}
                   <div className="flex-1" style={{ whiteSpace: 'pre-line' }}>{msg.text}</div>
                   {msg.role === 'assistant' && (
-                    <Bot size={14} className="flex-shrink-0 mt-0.5 text-green-600" />
+                    <Bot size={14} className="flex-shrink-0 mt-0.5 text-success" />
                   )}
                 </div>
               ))}
@@ -330,8 +330,8 @@ export default function VideoCall() {
           </div>
         )}
 
-        <div className="mx-3 mb-3 p-3.5 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800 flex gap-2.5">
-          <Lightbulb size={18} className="flex-shrink-0 mt-0.5 text-blue-600" />
+        <div className="mx-3 mb-3 p-3.5 bg-info-light border border-info/30 rounded-md text-sm text-info flex gap-2.5">
+          <Lightbulb size={18} className="flex-shrink-0 mt-0.5 text-info" />
           <div>
             <strong>¿Cómo funciona?</strong>
             <ul className="mt-1 space-y-0.5 list-disc list-inside">

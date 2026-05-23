@@ -43,7 +43,7 @@ export default function Schedule() {
           <div className="doctor-grid">
             {doctors.map(d => (
               <div key={d.id} onClick={() => setSelected(d.id)}
-                className={`doctor-card ${selected === d.id ? 'selected' : ''}`}>
+                className={`doctor-card cursor-pointer ${selected === d.id ? 'selected' : ''}`}>
                 <div className="doctor-avatar-lg"><Stethoscope size={24} className="text-primary" /></div>
                 <div className="font-semibold text-sm text-text">{d.name}</div>
                 <div className="text-xs text-secondary">{d.specialty}</div>
@@ -81,7 +81,7 @@ export default function Schedule() {
             placeholder="Ej: Hace una semana tengo dolor de cabeza constante..." />
         </div>
 
-        <div className="bg-info-light border border-blue-200 rounded-md p-3.5 text-sm text-blue-800 mb-5 flex gap-2.5 items-start">
+        <div className="bg-info-light border border-info/30 rounded-md p-3.5 text-sm text-info mb-5 flex gap-2.5 items-start">
           <Info size={18} className="flex-shrink-0 mt-0.5" />
           <span>Recibirás un recordatorio en tu correo 24 horas antes. Puedes cancelar desde tu historial hasta 2 horas antes.</span>
         </div>
