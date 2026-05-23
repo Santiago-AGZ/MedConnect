@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog'
 import { getAppointments, getDocuments, uploadDocument, deleteDocument as deleteDocApi, cancelAppointment, saveSummary, supabase } from '../lib/api'
-import { Calendar, UserRound, FileText, Plus, AlertTriangle, X, Info, Download } from 'lucide-react'
+import { Calendar, UserRound, FileText, Plus, AlertTriangle, Download } from 'lucide-react'
 
 export default function History() {
   const [appointments, setAppointments] = useState<any[]>([])
@@ -176,7 +176,7 @@ ${content}
       </div>
 
       <Dialog open={!!summaryModal} onOpenChange={() => setSummaryModal(null)}>
-        <DialogContent className="max-w-lg max-h-[85dvh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>Resumen de consulta</DialogTitle></DialogHeader>
           {summaryModal && (
             <div className="space-y-3">
@@ -185,42 +185,36 @@ ${content}
                 <div className="bg-white border border-border rounded-md overflow-hidden">
                   {(() => {
                     const lines = summaryModal.summary.split('\n').filter(Boolean)
-                    const header = lines[0] || ''
-                    const infoLines = lines.filter(l => l.includes(':') && !l.endsWith(':') && l.length < 60 && l !== header)
-                    const sectionLines = lines.filter(l => l.endsWith(':'))
+                    if (lines.length === 0) return null
+                    const header = lines[0]
+                    const info = lines.slice(1).filter(l => l.includes(':') && !l.startsWith(' '))
+                    const body = lines.slice(1).filter(l => !info.includes(l))
                     return (
                       <div>
-                        <div className="bg-primary/10 border-b border-primary/20 px-5 py-4">
-                          <div className="font-bold text-base text-primary">{header}</div>
+                        <div className="bg-primary/10 border-b border-primary/20 px-4 py-3">
+                          <div className="font-bold text-sm text-primary">{header}</div>
                         </div>
-                        <div className="px-5 py-4 grid grid-cols-2 gap-x-6 gap-y-3">
-                          {infoLines.map((l, i) => {
-                            const idx = l.indexOf(':')
-                            if (idx < 0) return null
-                            const label = l.slice(0, idx).trim()
-                            const value = l.slice(idx + 1).trim()
-                            if (!value) return null
-                            return (
-                              <div key={i} className="flex flex-col gap-0.5">
-                                <span className="text-xs font-semibold uppercase tracking-wider text-muted">{label}</span>
-                                <span className="text-sm text-text font-medium">{value}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                        {sectionLines.map((s, i) => {
-                          const sectionTitle = s.replace(':', '')
-                          const afterIdx = lines.indexOf(s)
-                          const sectionContent = lines.slice(afterIdx + 1, afterIdx + 20).filter(l => !sectionLines.includes(l)).slice(0, 10)
-                          return (
-                            <div key={i} className="px-5 py-4 border-t border-border">
-                              <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2.5">{sectionTitle}</h4>
-                              {sectionContent.map((c, j) => (
-                                <p key={j} className="text-sm text-text leading-relaxed mb-1.5 last:mb-0">{c}</p>
+                        <div className="px-4 py-3 space-y-3">
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                            {info.map((l, i) => {
+                              const idx = l.indexOf(':')
+                              if (idx < 0) return null
+                              return (
+                                <div key={i} className="flex flex-col gap-0.5">
+                                  <span className="text-xs font-semibold uppercase tracking-wider text-muted">{l.slice(0, idx).trim()}</span>
+                                  <span className="text-sm text-text font-medium">{l.slice(idx + 1).trim()}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                          {body.length > 0 && (
+                            <div className="border-t border-border pt-3 space-y-2">
+                              {body.map((l, i) => (
+                                <p key={i} className="text-sm text-text leading-relaxed">{l}</p>
                               ))}
                             </div>
-                          )
-                        })}
+                          )}
+                        </div>
                       </div>
                     )
                   })()}

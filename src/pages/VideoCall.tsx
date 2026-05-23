@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { completeAppointment, saveChatMessage, saveSummary } from '../lib/api'
-import { supabase } from '../lib/api'
 import { UserRound, Mic, MicOff, Camera, CameraOff, Lightbulb, PhoneOff, Bot, Circle, Send } from 'lucide-react'
 
 const CtrlBtn = memo(({ onClick, active, icon: Icon, label }: { onClick: () => void; active?: boolean; icon: any; label: string }) => (
@@ -219,28 +218,18 @@ export default function VideoCall() {
       const motivo = lastApp?.reason || 'No especificado'
       const sintomas = chatMessages.find(m => m.role === 'user')?.text || ''
       const indicaciones = [...chatMessages].reverse().find(m => m.role === 'assistant' && m.text !== 'Pensando...')?.text || 'Pendiente de evaluacion medica'
-      const summary = [
+      const descripcion = sintomas.length > 200 ? sintomas.slice(0, 200) + '...' : sintomas
+      const recs = indicaciones.length > 300 ? indicaciones.slice(0, 300) + '...' : indicaciones
+      const parts = [
         `MedConnect - Resumen Clinico`,
         `Fecha: ${dateStr}`,
         `Duracion: ${timeStr}`,
-        `Medico: ${doctor.name}`,
-        `Especialidad: ${doctor.specialty}`,
-        ``,
-        `Motivo de consulta:`,
-        `Paciente consulta por ${motivo}.`,
-        ``,
-        `Enfermedad actual:`,
-        `${sintomas || 'Sin descripcion detallada del paciente.'}`,
-        ``,
-        `Antecedentes:`,
-        `No registrados en la consulta virtual.`,
-        ``,
-        `Impresion diagnostica:`,
-        `En evaluacion por el medico tratante.`,
-        ``,
-        `Recomendaciones:`,
-        `${indicaciones}`,
-      ].join('\n')
+        `Medico: ${doctor.name} (${doctor.specialty})`,
+        `Motivo: ${motivo}`,
+      ]
+      if (descripcion) parts.push(``, `Sintomas: ${descripcion}`)
+      if (recs) parts.push(``, `Indicaciones: ${recs}`)
+      const summary = parts.join('\n')
       completeAppointment(lastApp.id)
       saveSummary(lastApp.id, summary)
       navigate('/history')
