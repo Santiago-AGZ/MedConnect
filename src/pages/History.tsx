@@ -182,25 +182,48 @@ ${content}
             <div className="space-y-3">
 
               {summaryModal.status === 'completed' && summaryModal.summary ? (
-                <div className="bg-white border border-border rounded-md text-sm divide-y divide-border">
-                  {summaryModal.summary.split('\n').filter(Boolean).map((line: string, i: number) => {
-                    if (line.startsWith('MedConnect')) {
-                      return <div key={i} className="bg-primary text-white font-bold px-4 py-3">{line}</div>
-                    }
-                    if (line.endsWith(':')) {
-                      return <div key={i} className="px-4 pt-4 pb-1 text-xs font-bold uppercase tracking-wider text-primary">{line}</div>
-                    }
-                    const idx = line.indexOf(':')
-                    if (idx > 0 && line.length < 60) {
-                      return (
-                        <div key={i} className="px-4 py-2 flex gap-3">
-                          <span className="font-semibold text-text shrink-0 w-28">{line.slice(0, idx).trim()}</span>
-                          <span className="text-text">{line.slice(idx + 1).trim()}</span>
+                <div className="bg-white border border-border rounded-md overflow-hidden">
+                  {(() => {
+                    const lines = summaryModal.summary.split('\n').filter(Boolean)
+                    const header = lines[0] || ''
+                    const infoLines = lines.filter(l => l.includes(':') && !l.endsWith(':') && l.length < 60 && l !== header)
+                    const sectionLines = lines.filter(l => l.endsWith(':'))
+                    return (
+                      <div>
+                        <div className="bg-primary/10 border-b border-primary/20 px-5 py-4">
+                          <div className="font-bold text-base text-primary">{header}</div>
                         </div>
-                      )
-                    }
-                    return <div key={i} className="px-4 pb-2 text-text leading-relaxed">{line}</div>
-                  })}
+                        <div className="px-5 py-4 grid grid-cols-2 gap-x-6 gap-y-3">
+                          {infoLines.map((l, i) => {
+                            const idx = l.indexOf(':')
+                            if (idx < 0) return null
+                            const label = l.slice(0, idx).trim()
+                            const value = l.slice(idx + 1).trim()
+                            if (!value) return null
+                            return (
+                              <div key={i} className="flex flex-col gap-0.5">
+                                <span className="text-xs font-semibold uppercase tracking-wider text-muted">{label}</span>
+                                <span className="text-sm text-text font-medium">{value}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {sectionLines.map((s, i) => {
+                          const sectionTitle = s.replace(':', '')
+                          const afterIdx = lines.indexOf(s)
+                          const sectionContent = lines.slice(afterIdx + 1, afterIdx + 20).filter(l => !sectionLines.includes(l)).slice(0, 10)
+                          return (
+                            <div key={i} className="px-5 py-4 border-t border-border">
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2.5">{sectionTitle}</h4>
+                              {sectionContent.map((c, j) => (
+                                <p key={j} className="text-sm text-text leading-relaxed mb-1.5 last:mb-0">{c}</p>
+                              ))}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
                 </div>
               ) : null}
 
