@@ -54,20 +54,20 @@ export default function Register() {
         <form onSubmit={submit} className="space-y-5">
           <div>
             <label className="block text-sm font-semibold mb-1.5 text-text">Nombre completo</label>
-            <input name="name" value={form.name} onChange={c} required className={inpCls} placeholder="Ej: María García López" />
+            <input name="name" value={form.name} onChange={c} required className={inpCls} placeholder="Ej: María García López" autoComplete="name" />
           </div>
           <div>
             <label className="block text-sm font-semibold mb-1.5 text-text">Correo electrónico</label>
-            <input type="email" name="email" value={form.email} onChange={c} required className={inpCls} placeholder="maria@correo.com" />
+            <input type="email" name="email" value={form.email} onChange={c} required className={inpCls} placeholder="maria@correo.com" autoComplete="email" />
           </div>
           <div>
             <label className="block text-sm font-semibold mb-1.5 text-text">Teléfono</label>
-            <input name="phone" value={form.phone} onChange={c} required className={inpCls} placeholder="300 123 4567" />
+            <input name="phone" value={form.phone} onChange={c} required className={inpCls} placeholder="300 123 4567" autoComplete="tel" />
           </div>
           <div>
             <label className="block text-sm font-semibold mb-1.5 text-text">Contraseña</label>
             <div className="relative flex items-center">
-              <input type={showPass ? 'text' : 'password'} name="password" value={form.password} onChange={c} required className={`${inpCls} pr-11`} placeholder="Crea una contraseña segura" />
+              <input type={showPass ? 'text' : 'password'} name="password" value={form.password} onChange={c} required className={`${inpCls} pr-11`} placeholder="Crea una contraseña segura" autoComplete="new-password" />
               <button type="button" onClick={() => setShowPass(!showPass)} aria-label={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 className="absolute right-2 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-secondary p-2 rounded-md hover:bg-bg transition-colors">
                 {showPass ? <Eye size={18} /> : <EyeOff size={18} />}
@@ -89,7 +89,7 @@ export default function Register() {
           <div>
             <label className="block text-sm font-semibold mb-1.5 text-text">Confirmar contraseña</label>
             <div className="relative flex items-center">
-              <input type={showConfirm ? 'text' : 'password'} name="confirm" value={form.confirm} onChange={c} required className={`${inpCls} pr-11`} placeholder="Repite la contraseña" />
+              <input type={showConfirm ? 'text' : 'password'} name="confirm" value={form.confirm} onChange={c} required className={`${inpCls} pr-11`} placeholder="Repite la contraseña" autoComplete="new-password" />
               <button type="button" onClick={() => setShowConfirm(!showConfirm)} aria-label={showConfirm ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 className="absolute right-2 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-secondary p-2 rounded-md hover:bg-bg transition-colors">
                 {showConfirm ? <Eye size={18} /> : <EyeOff size={18} />}

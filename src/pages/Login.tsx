@@ -32,14 +32,14 @@ export default function Login() {
         <form onSubmit={submit} className="space-y-5">
           <div>
             <label className="block text-sm font-semibold mb-1.5 text-text">Correo electrónico</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email"
               className="w-full px-3.5 py-3 border-2 border-border rounded-md text-base focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary/15 box-border"
               placeholder="maria@correo.com" />
           </div>
           <div>
             <label className="block text-sm font-semibold mb-1.5 text-text">Contraseña</label>
             <div className="relative flex items-center">
-              <input type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required
+              <input type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password"
                 className="w-full px-3.5 py-3 pr-11 border-2 border-border rounded-md text-base focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary/15 box-border"
                 placeholder="Tu contraseña" />
               <button type="button" onClick={() => setShowPass(!showPass)} aria-label={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
