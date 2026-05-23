@@ -38,11 +38,11 @@ export default function History() {
     try {
       const summary = appt.summary || ''
       const date = new Date().toLocaleDateString('es-CO')
-      const lines = summary.split('|').map((l: string) => l.trim()).filter(Boolean)
-      const content = lines.map(l => {
-        const idx = l.indexOf(':')
-        if (idx > 0) return `<h3 style="font-size:13px;text-transform:uppercase;color:#94A3B8;letter-spacing:1px;margin:0 0 6px;">${l.slice(0, idx).trim()}</h3><p style="color:#475569;font-size:14px;margin:0 0 16px;">${l.slice(idx + 1).trim()}</p>`
-        return `<p style="font-size:14px;margin:0 0 8px;">${l}</p>`
+      const content = summary.split('\n').map(l => {
+        if (l.startsWith('MedConnect')) return `<h1 style="color:#0D9488;font-size:22px;margin:0 0 4px;">${l}</h1>`
+        if (l.endsWith(':')) return `<h3 style="font-size:13px;text-transform:uppercase;color:#0D9488;letter-spacing:1px;margin:16px 0 6px;">${l}</h3>`
+        if (l.trim() === '') return '<div style="height:8px;"></div>'
+        return `<p style="font-size:14px;margin:2px 0;color:#1E293B;">${l}</p>`
       }).join('\n')
 
       const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Resumen MedConnect</title>
@@ -119,7 +119,7 @@ ${content}
               {past.length === 0 ? (
                 <tr><td colSpan={6} className="text-center py-8 text-muted">Aún no hay consultas anteriores.</td></tr>
               ) : past.map(a => (
-                <tr key={a.id} className="hover:bg-[#F8FAFC]">
+                  <tr key={a.id} className="hover:bg-muted">
                   <td className="px-4 py-3 border-b border-border">{a.date}</td>
                   <td className="px-4 py-3 border-b border-border font-medium">{a.doctors?.name}</td>
                   <td className="px-4 py-3 border-b border-border text-secondary">{a.doctors?.specialty}</td>
@@ -180,25 +180,26 @@ ${content}
           <DialogHeader><DialogTitle>Resumen de consulta</DialogTitle></DialogHeader>
           {summaryModal && (
             <div className="space-y-3">
-              <div className="summary-report">
-                {[['Medico', summaryModal.doctors?.name], ['Especialidad', summaryModal.doctors?.specialty], ['Fecha', `${summaryModal.date} ${summaryModal.time}`], ['Motivo', summaryModal.reason || 'No especificado'], ['Estado', summaryModal.status === 'completed' ? 'Completada' : 'Cancelada']].map(([l, v]) => (
-                  <div key={l as string} className="row"><span className="label">{l}</span><span className="value">{v}</span></div>
-                ))}
-              </div>
 
               {summaryModal.status === 'completed' && summaryModal.summary ? (
-                <div className="bg-white border border-border rounded-md p-4 text-sm leading-relaxed whitespace-pre-wrap">
-                  {summaryModal.summary.split('|').map((line: string, i: number) => {
-                    const parts = line.split(':')
-                    if (parts.length > 1 && ['Fecha', 'Duracion', 'Medico', 'Motivo de consulta', 'Sintomas reportados', 'Indicaciones'].includes(parts[0].trim())) {
+                <div className="bg-white border border-border rounded-md text-sm divide-y divide-border">
+                  {summaryModal.summary.split('\n').filter(Boolean).map((line: string, i: number) => {
+                    if (line.startsWith('MedConnect')) {
+                      return <div key={i} className="bg-primary text-white font-bold px-4 py-3">{line}</div>
+                    }
+                    if (line.endsWith(':')) {
+                      return <div key={i} className="px-4 pt-4 pb-1 text-xs font-bold uppercase tracking-wider text-primary">{line}</div>
+                    }
+                    const idx = line.indexOf(':')
+                    if (idx > 0 && line.length < 60) {
                       return (
-                        <div key={i} className="mb-2 last:mb-0">
-                          <span className="font-semibold text-text">{parts[0].trim()}:</span>
-                          <span className="text-text ml-1">{parts.slice(1).join(':').trim()}</span>
+                        <div key={i} className="px-4 py-2 flex gap-3">
+                          <span className="font-semibold text-text shrink-0 w-28">{line.slice(0, idx).trim()}</span>
+                          <span className="text-text">{line.slice(idx + 1).trim()}</span>
                         </div>
                       )
                     }
-                    return <p key={i} className="mb-1 text-text">{line.trim()}</p>
+                    return <div key={i} className="px-4 pb-2 text-text leading-relaxed">{line}</div>
                   })}
                 </div>
               ) : null}
@@ -233,12 +234,13 @@ ${content}
       </Dialog>
 
       {confirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6" onClick={() => setConfirm(null)}>
-          <div className="bg-white rounded-xl p-8 max-w-sm w-full text-center shadow-lg" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6" onClick={() => setConfirm(null)}
+          role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+          <div className="bg-white rounded-xl p-8 max-w-sm w-full text-center shadow-lg cursor-default" onClick={e => e.stopPropagation()}>
             <div className="w-12 h-12 rounded-full bg-error-light flex items-center justify-center mx-auto mb-4">
               <AlertTriangle size={24} className="text-error" />
             </div>
-            <h3 className="text-lg font-bold mb-2 text-text">{confirm.title}</h3>
+            <h3 id="confirm-title" className="text-lg font-bold mb-2 text-text">{confirm.title}</h3>
             <p className="text-sm text-secondary mb-6">{confirm.message}</p>
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => setConfirm(null)}>Cancelar</Button>

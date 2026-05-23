@@ -1,9 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { completeAppointment, saveChatMessage, saveSummary } from '../lib/api'
 import { supabase } from '../lib/api'
 import { UserRound, Mic, MicOff, Camera, CameraOff, Lightbulb, PhoneOff, Bot, Circle, Send } from 'lucide-react'
-import html2pdf from 'html2pdf.js'
+
+const CtrlBtn = memo(({ onClick, active, icon: Icon, label }: { onClick: () => void; active?: boolean; icon: any; label: string }) => (
+  <button onClick={onClick} className={`px-4 py-2.5 rounded-md text-sm font-medium border-none cursor-pointer flex items-center gap-2 transition-all active:scale-[0.95] ${active !== undefined ? (active ? 'bg-primary text-white shadow-sm' : 'bg-bg text-text hover:bg-border') : 'bg-bg text-text hover:bg-border'}`}>
+    <Icon size={16} /> {label}
+  </button>
+))
 
 export default function VideoCall() {
   const localVideo = useRef<HTMLVideoElement>(null)
@@ -212,73 +217,35 @@ export default function VideoCall() {
         ? `${Math.floor(elapsed / 3600)}h ${Math.floor((elapsed % 3600) / 60)}m`
         : `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`
       const motivo = lastApp?.reason || 'No especificado'
-      const descripcion = chatMessages.find(m => m.role === 'user')?.text || ''
-      const recomendacion = [...chatMessages].reverse().find(m => m.role === 'assistant' && m.text !== 'Pensando...')?.text || ''
-      const summary = `Fecha: ${dateStr} | Duracion: ${timeStr} | Medico: ${doctor.name} (${doctor.specialty}) | Motivo de consulta: ${motivo} | Sintomas reportados: ${descripcion} | Indicaciones: ${recomendacion}`
+      const sintomas = chatMessages.find(m => m.role === 'user')?.text || ''
+      const indicaciones = [...chatMessages].reverse().find(m => m.role === 'assistant' && m.text !== 'Pensando...')?.text || 'Pendiente de evaluacion medica'
+      const summary = [
+        `MedConnect - Resumen Clinico`,
+        `Fecha: ${dateStr}`,
+        `Duracion: ${timeStr}`,
+        `Medico: ${doctor.name}`,
+        `Especialidad: ${doctor.specialty}`,
+        ``,
+        `Motivo de consulta:`,
+        `Paciente consulta por ${motivo}.`,
+        ``,
+        `Enfermedad actual:`,
+        `${sintomas || 'Sin descripcion detallada del paciente.'}`,
+        ``,
+        `Antecedentes:`,
+        `No registrados en la consulta virtual.`,
+        ``,
+        `Impresion diagnostica:`,
+        `En evaluacion por el medico tratante.`,
+        ``,
+        `Recomendaciones:`,
+        `${indicaciones}`,
+      ].join('\n')
       completeAppointment(lastApp.id)
       saveSummary(lastApp.id, summary)
       navigate('/history')
     } else navigate('/history')
   }
-
-  const generatePDF = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      const { data: profile } = await supabase.from('profiles').select('name').eq('id', user?.id).single()
-      const patientName = profile?.name || user?.email?.split('@')[0] || 'Paciente'
-      const now = new Date()
-      const dateStr = now.toLocaleDateString('es-CO')
-      const timeStr = elapsed >= 3600
-        ? `${Math.floor(elapsed / 3600)}h ${Math.floor((elapsed % 3600) / 60)}m`
-        : `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`
-
-      const msgs = chatMessages.filter(m => m.text !== 'Pensando...')
-
-      const el = document.createElement('div')
-      el.innerHTML = `
-<div style="font-family:Arial,sans-serif;padding:40px;color:#1E293B;max-width:700px;margin:0 auto;">
-<div style="border-bottom:3px solid #0D9488;padding-bottom:16px;margin-bottom:24px;">
-  <h1 style="color:#0D9488;font-size:24px;margin:0;">MedConnect</h1>
-  <p style="color:#64748B;font-size:15px;margin:4px 0 0;">Resumen de consulta medica</p>
-</div>
-<div style="margin-bottom:20px;">
-  <h3 style="font-size:13px;text-transform:uppercase;color:#94A3B8;letter-spacing:1px;margin:0 0 8px;">Informacion del paciente</h3>
-  <table style="width:100%;border-collapse:collapse;font-size:14px;">
-    <tr><td style="color:#64748B;width:130px;padding:6px 0;border-bottom:1px solid #E2E8F0;font-weight:500;">Nombre</td><td style="padding:6px 0;border-bottom:1px solid #E2E8F0;">${patientName}</td></tr>
-    <tr><td style="color:#64748B;width:130px;padding:6px 0;border-bottom:1px solid #E2E8F0;font-weight:500;">Fecha</td><td style="padding:6px 0;border-bottom:1px solid #E2E8F0;">${dateStr}</td></tr>
-    <tr><td style="color:#64748B;width:130px;padding:6px 0;border-bottom:1px solid #E2E8F0;font-weight:500;">Duracion</td><td style="padding:6px 0;border-bottom:1px solid #E2E8F0;">${timeStr}</td></tr>
-  </table>
-</div>
-<div style="margin-bottom:20px;">
-  <h3 style="font-size:13px;text-transform:uppercase;color:#94A3B8;letter-spacing:1px;margin:0 0 8px;">Informacion medica</h3>
-  <table style="width:100%;border-collapse:collapse;font-size:14px;">
-    <tr><td style="color:#64748B;width:130px;padding:6px 0;border-bottom:1px solid #E2E8F0;font-weight:500;">Medico</td><td style="padding:6px 0;border-bottom:1px solid #E2E8F0;">${doctor.name}</td></tr>
-    <tr><td style="color:#64748B;width:130px;padding:6px 0;border-bottom:1px solid #E2E8F0;font-weight:500;">Especialidad</td><td style="padding:6px 0;border-bottom:1px solid #E2E8F0;">${doctor.specialty}</td></tr>
-    <tr><td style="color:#64748B;width:130px;padding:6px 0;border-bottom:1px solid #E2E8F0;font-weight:500;">Motivo</td><td style="padding:6px 0;border-bottom:1px solid #E2E8F0;">${lastApp?.reason || 'No especificado'}</td></tr>
-  </table>
-</div>
-${msgs.length > 0 ? `<div style="margin-bottom:20px;">
-  <h3 style="font-size:13px;text-transform:uppercase;color:#94A3B8;letter-spacing:1px;margin:0 0 8px;">Resumen de la consulta</h3>
-  ${msgs.map(m => `<div style="padding:8px 12px;margin:4px 0;border-radius:6px;font-size:13px;${m.role === 'assistant' ? 'background:#F0FDFA;border-left:3px solid #0D9488;' : 'background:#F1F5F9;border-left:3px solid #64748B;'}"><strong>${m.role === 'assistant' ? 'Asistente' : 'Paciente'}:</strong> ${m.text}</div>`).join('')}
-</div>` : ''}
-<div style="background:#FFFBEB;border:1px solid #FDE68A;padding:12px;border-radius:6px;font-size:11px;color:#92400E;margin:16px 0;">
-  Este resumen lo genera MedConnect de forma automatica. No reemplaza la historia clinica oficial ni lo que diga tu medico. Consulta con el para un diagnostico profesional.
-</div>
-<div style="margin-top:32px;padding-top:16px;border-top:1px solid #E2E8F0;font-size:11px;color:#94A3B8;text-align:center;">
-  <p style="margin:2px 0;">MedConnect - Plataforma de Teleconsulta Medica Accesible</p>
-  <p style="margin:2px 0;">Documento generado el ${dateStr}</p>
-</div></div>`
-
-      document.body.appendChild(el)
-      html2pdf().set({ margin: 10, filename: `Resumen_MedConnect_${now.getTime()}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(el).save().then(() => el.remove())
-    } catch (e) { /* silencioso */ }
-  }
-
-  const CtrlBtn = ({ onClick, active, icon: Icon, label }: { onClick: () => void; active?: boolean; icon: any; label: string }) => (
-    <button onClick={onClick} className={`px-4 py-2.5 rounded-md text-sm font-medium border-none cursor-pointer flex items-center gap-2 transition-all active:scale-[0.95] ${active !== undefined ? (active ? 'bg-primary text-white shadow-sm' : 'bg-bg text-text hover:bg-border') : 'bg-bg text-text hover:bg-border'}`}>
-      <Icon size={16} /> {label}
-    </button>
-  )
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-6">
@@ -298,7 +265,7 @@ ${msgs.length > 0 ? `<div style="margin-bottom:20px;">
           ) : (
             <div className="text-center text-white px-6">
               <div className="flex items-center gap-2 absolute top-4 left-4">
-                <Circle size={8} className="fill-green-500 text-green-500 animate-pulse" />
+                <Circle size={8} className="fill-success text-success animate-pulse" />
                 <span className="text-xs text-white/60">Sala activa</span>
               </div>
               <div className="w-20 h-20 rounded-full bg-white/15 flex items-center justify-center mx-auto mb-4">
@@ -323,7 +290,7 @@ ${msgs.length > 0 ? `<div style="margin-bottom:20px;">
           <CtrlBtn onClick={toggleMic} active={micOn} icon={micOn ? Mic : MicOff} label={micOn ? 'Micrófono activo' : 'Micrófono mute'} />
           <CtrlBtn onClick={askAI} icon={Bot} label="Preguntar a IA" />
           <span className="text-xs text-secondary font-medium px-2 py-2.5">{String(Math.floor(elapsed / 60)).padStart(2, '0')}:{String(elapsed % 60).padStart(2, '0')}</span>
-          <button onClick={endCall} className="px-4 py-2.5 rounded-md text-sm font-medium bg-error text-white border-none cursor-pointer flex items-center gap-2 hover:bg-red-600 transition-all active:scale-[0.95]">
+          <button onClick={endCall} className="px-4 py-2.5 rounded-md text-sm font-medium bg-error text-white border-none cursor-pointer flex items-center gap-2 hover:bg-error/80 transition-all active:scale-[0.95]">
             <PhoneOff size={16} /> Finalizar consulta
           </button>
         </div>
@@ -351,12 +318,11 @@ ${msgs.length > 0 ? `<div style="margin-bottom:20px;">
                 onKeyDown={e => e.key === 'Enter' && handleAsk()}
                 placeholder="Escribe o usa el micrófono..."
                 className="flex-1 px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-primary" />
-              <button onClick={toggleListening}
-                className={`px-3 py-2 rounded-md border-none cursor-pointer transition-all active:scale-[0.95] flex items-center gap-1.5 text-sm ${isListening ? 'bg-error text-white' : 'bg-bg text-text hover:bg-border'}`}
-                title={isListening ? 'Grabando...' : 'Hablar'}>
+              <button onClick={toggleListening} aria-label={isListening ? 'Detener grabacion' : 'Iniciar grabacion por voz'}
+                className={`px-3 py-2 rounded-md border-none cursor-pointer transition-all active:scale-[0.95] flex items-center gap-1.5 text-sm ${isListening ? 'bg-error text-white' : 'bg-bg text-text hover:bg-border'}`}>
                 <Mic size={14} />
               </button>
-              <button onClick={() => handleAsk()}
+              <button onClick={() => handleAsk()} aria-label="Enviar pregunta"
                 className="px-3 py-2 bg-primary text-white rounded-md border-none cursor-pointer hover:bg-primary-hover transition-all active:scale-[0.95] flex items-center gap-1.5 text-sm">
                 <Send size={14} />
               </button>
