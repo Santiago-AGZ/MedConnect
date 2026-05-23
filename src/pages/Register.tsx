@@ -70,7 +70,7 @@ export default function Register() {
               <input type={showPass ? 'text' : 'password'} name="password" value={form.password} onChange={c} required className={`${inpCls} pr-11`} placeholder="Crea una contraseña segura" />
               <button type="button" onClick={() => setShowPass(!showPass)} aria-label={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 className="absolute right-2 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-secondary p-2 rounded-md hover:bg-bg transition-colors">
-                {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPass ? <Eye size={18} /> : <EyeOff size={18} />}
               </button>
             </div>
             <ul className="password-reqs">
@@ -92,7 +92,7 @@ export default function Register() {
               <input type={showConfirm ? 'text' : 'password'} name="confirm" value={form.confirm} onChange={c} required className={`${inpCls} pr-11`} placeholder="Repite la contraseña" />
               <button type="button" onClick={() => setShowConfirm(!showConfirm)} aria-label={showConfirm ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 className="absolute right-2 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-secondary p-2 rounded-md hover:bg-bg transition-colors">
-                {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showConfirm ? <Eye size={18} /> : <EyeOff size={18} />}
               </button>
             </div>
           </div>

@@ -35,7 +35,7 @@ export async function cancelAppointment(id: string) {
 }
 
 export async function completeAppointment(id: string) {
-  await supabase.from('appointments').update({ status: 'completed', summary: 'Consulta completada.' }).eq('id', id)
+  await supabase.from('appointments').update({ status: 'completed' }).eq('id', id)
 }
 
 export async function saveSummary(id: string, summary: string) {

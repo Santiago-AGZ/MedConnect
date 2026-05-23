@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { completeAppointment, saveChatMessage, getChatMessages } from '../lib/api'
+import { completeAppointment, saveChatMessage, saveSummary } from '../lib/api'
 import { supabase } from '../lib/api'
 import { UserRound, Mic, MicOff, Camera, CameraOff, Lightbulb, PhoneOff, Bot, Circle, Send } from 'lucide-react'
 import html2pdf from 'html2pdf.js'
@@ -22,14 +22,8 @@ export default function VideoCall() {
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chatMessages])
 
   useEffect(() => {
-    if (lastApp?.id) {
-      getChatMessages(lastApp.id).then(msgs => {
-        if (msgs.length > 0) {
-          setChatMessages(msgs.map(m => ({ role: m.sender_id === (lastApp as any).user_id ? 'user' : 'assistant', text: m.message })))
-          setShowAiChat(true)
-        }
-      })
-    }
+    setChatMessages([])
+    setShowAiChat(false)
   }, [])
   
   useEffect(() => {
@@ -171,32 +165,9 @@ export default function VideoCall() {
     setIsListening(true)
   }
 
-  const localAnswer = (q: string): string | null => {
-    if (q.includes('hola') || q.includes('buenas') || q.includes('gracias')) return `Hola! Soy el asistente de MedConnect. Puedes preguntarme sobre síntomas, medicamentos o cualquier duda para tu consulta con ${doctor.name}.`
-    if (q.includes('fiebre') || q.includes('temperatura')) return 'Si tienes fiebre (más de 38°C), informa al médico desde cuándo y si ha bajado con medicamentos.'
-    if (q.includes('dolor')) return 'Describe al médico la ubicación del dolor, su intensidad (del 1 al 10) y si es constante o va y viene.'
-    if (q.includes('medicamento') || q.includes('pastilla') || q.includes('receta')) return 'Lleva una lista de todos los medicamentos que tomas, incluyendo dosis y horarios.'
-    if (q.includes('alergia') || q.includes('alérgico')) return 'Informa al médico sobre cualquier alergia que tengas, especialmente a medicamentos.'
-    if (q.includes('cirugía') || q.includes('operación')) return 'Menciona al médico si has tenido cirugías previas y cuándo fueron.'
-    if (q.includes('análisis') || q.includes('examen') || q.includes('resultado')) return 'Puedes subir tus resultados desde la sección de Documentos en el historial.'
-    if (q.includes('recomienda') || q.includes('consejo')) return `Tu médico te dará recomendaciones personalizadas durante la consulta.`
-    return null
-  }
-
   const handleAsk = (text?: string) => {
     const raw = (text || userQuestion).trim()
     if (!raw) return
-    const q = raw.toLowerCase()
-    const local = localAnswer(q)
-    if (local) {
-    setChatMessages(prev => [...prev, { role: 'user', text: raw }, { role: 'assistant', text: local }])
-    setUserQuestion('')
-    if (lastApp?.id) {
-      saveChatMessage(lastApp.id, raw, 'T')
-      saveChatMessage(lastApp.id, local, 'Asistente')
-    }
-    return
-    }
     setChatMessages(prev => [...prev, { role: 'user', text: raw }, { role: 'assistant', text: 'Pensando...' }])
     setUserQuestion('')
     if (lastApp?.id) saveChatMessage(lastApp.id, raw, 'T')
@@ -209,7 +180,7 @@ export default function VideoCall() {
       body: JSON.stringify({
         model: import.meta.env.VITE_GROQ_MODEL || 'llama-3.3-70b-versatile',
         messages: [
-          { role: 'system', content: `Eres un asistente médico virtual de MedConnect. Tu ÚNICO propósito es ayudar al paciente durante su consulta médica. Solo respondes preguntas relacionadas con salud, síntomas, medicamentos, exámenes médicos y preparación para consultas. ${consultaContext}Si te preguntan algo NO relacionado con salud o medicina (chistes, política, deportes, etc.), responde: "Lo siento, solo puedo ayudarte con temas de salud y medicina. ¿Tienes alguna duda sobre tu consulta?" No saludes ni hagas presentaciones extensas. Sé breve (2-3 oraciones), claro, en español. IMPORTANTE: No diagnosticas ni recetas medicamentos. Siempre sugiere consultar al médico tratante.` },
+          { role: 'system', content: `Eres un asistente medico virtual de MedConnect. Ayudas al paciente durante su consulta. Responde de forma CONCISA (max 3 oraciones). Si te preguntan algo NO relacionado con salud o medicina, responde: "Lo siento, solo puedo ayudarte con temas de salud." ${consultaContext}IMPORTANTE: No diagnosticas ni recetas medicamentos. Siempre sugiere consultar al medico tratante.` },
           { role: 'user', content: `${consultaContext}Pregunta del paciente: ${raw}` },
         ],
       }),
@@ -227,7 +198,7 @@ export default function VideoCall() {
       .catch(() => {
         setChatMessages(prev => {
           const next = [...prev]
-          next[next.length - 1] = { role: 'assistant', text: localAnswer(q) || `Explica tus síntomas con claridad: desde cuándo los tienes, qué los mejora o empeora, y si has tomado algo para aliviarlos.` }
+          next[next.length - 1] = { role: 'assistant', text: 'Lo siento, no pude conectar con el servicio. Intenta de nuevo.' }
           return next
         })
       })
@@ -235,9 +206,19 @@ export default function VideoCall() {
 
   const endCall = () => {
     stopCamera()
-    generatePDF()
-    if (lastApp?.id) completeAppointment(lastApp.id).then(() => navigate('/history'))
-    else navigate('/history')
+    if (lastApp?.id) {
+      const dateStr = new Date().toLocaleDateString('es-CO')
+      const timeStr = elapsed >= 3600
+        ? `${Math.floor(elapsed / 3600)}h ${Math.floor((elapsed % 3600) / 60)}m`
+        : `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`
+      const motivo = lastApp?.reason || 'No especificado'
+      const descripcion = chatMessages.find(m => m.role === 'user')?.text || ''
+      const recomendacion = [...chatMessages].reverse().find(m => m.role === 'assistant' && m.text !== 'Pensando...')?.text || ''
+      const summary = `Fecha: ${dateStr} | Duracion: ${timeStr} | Medico: ${doctor.name} (${doctor.specialty}) | Motivo de consulta: ${motivo} | Sintomas reportados: ${descripcion} | Indicaciones: ${recomendacion}`
+      completeAppointment(lastApp.id)
+      saveSummary(lastApp.id, summary)
+      navigate('/history')
+    } else navigate('/history')
   }
 
   const generatePDF = async () => {

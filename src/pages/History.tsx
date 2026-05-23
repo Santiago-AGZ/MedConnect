@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog'
 import { getAppointments, getDocuments, uploadDocument, deleteDocument as deleteDocApi, cancelAppointment, saveSummary, supabase } from '../lib/api'
-import { Calendar, UserRound, FileText, Plus, AlertTriangle, X, Info } from 'lucide-react'
+import { Calendar, UserRound, FileText, Plus, AlertTriangle, X, Info, Download } from 'lucide-react'
 
 export default function History() {
   const [appointments, setAppointments] = useState<any[]>([])
@@ -30,19 +30,54 @@ export default function History() {
     const file = e.target.files?.[0]; if (!file) return; await uploadDocument(file, null); load()
   }
   const openSummary = (a: any) => { setSummaryModal(a); setSummaryText(a.summary || '') }
-  const saveSummaryText = async () => { if (summaryModal) { await saveSummary(summaryModal.id, summaryText); setSummaryModal(null) } }
+  const saveSummaryText = async () => {
+    if (summaryModal) { await saveSummary(summaryModal.id, summaryText); setSummaryModal(null) }
+  }
+
+  const downloadPDF = async (appt: any) => {
+    try {
+      const summary = appt.summary || ''
+      const date = new Date().toLocaleDateString('es-CO')
+      const lines = summary.split('|').map((l: string) => l.trim()).filter(Boolean)
+      const content = lines.map(l => {
+        const idx = l.indexOf(':')
+        if (idx > 0) return `<h3 style="font-size:13px;text-transform:uppercase;color:#94A3B8;letter-spacing:1px;margin:0 0 6px;">${l.slice(0, idx).trim()}</h3><p style="color:#475569;font-size:14px;margin:0 0 16px;">${l.slice(idx + 1).trim()}</p>`
+        return `<p style="font-size:14px;margin:0 0 8px;">${l}</p>`
+      }).join('\n')
+
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Resumen MedConnect</title>
+<style>body{font-family:Arial,sans-serif;padding:40px;color:#1E293B;max-width:700px;margin:0 auto;}
+h1{color:#0D9488;font-size:24px;margin:0 0 4px;border-bottom:3px solid #0D9488;padding-bottom:16px}
+p.sub{color:#64748B;font-size:14px;margin:4px 0 20px;}
+.d{background:#FFFBEB;border:1px solid #FDE68A;padding:12px;border-radius:6px;font-size:11px;color:#92400E;margin:16px 0;}
+.f{margin-top:32px;padding-top:16px;border-top:1px solid #E2E8F0;font-size:11px;color:#94A3B8;text-align:center;}
+@media print{body{padding:20px;}}</style></head><body>
+<h1>MedConnect</h1>
+<p class="sub">Resumen de consulta medica</p>
+${content}
+<div class="d">Este resumen lo genera MedConnect de forma automatica. No reemplaza la historia clinica oficial. Consulta a tu medico para un diagnostico profesional.</div>
+<div class="f"><p>Documento generado el ${date}</p></div>
+<script>window.print()</script></body></html>`
+
+      const blob = new Blob([html], { type: 'text/html' })
+      const url = URL.createObjectURL(blob)
+      const w = window.open(url, '_blank')
+      if (w) { w.document.title = 'Resumen MedConnect'; setTimeout(() => URL.revokeObjectURL(url), 60000) }
+      else window.location.href = url
+    } catch { }
+  }
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-6">
+    <div className="max-w-4xl mx-auto py-6 sm:py-8 px-4 sm:px-6">
       <div className="flex items-start justify-between mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-text">Mi historial médico</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-text">Mi historial médico</h1>
           <p className="text-sm text-secondary">Tus consultas y documentos organizados en un solo lugar.</p>
         </div>
-        <Link to="/schedule"><Button>Agendar nueva cita</Button></Link>
+        <Link to="/schedule"><Button size="sm" className="sm:size-default">Agendar nueva cita</Button></Link>
       </div>
 
-      <div className="bg-surface border border-border rounded-lg p-6 mb-5">
+      <div className="bg-surface border border-border rounded-lg p-4 sm:p-6 mb-5">
         <h2 className="text-base font-semibold mb-1 text-text">Próximas citas</h2>
         <p className="text-xs text-secondary mb-4">
           {upcoming.length > 0 ? `Tienes ${upcoming.length} cita${upcoming.length > 1 ? 's' : ''} próxima${upcoming.length > 1 ? 's' : ''}.` : 'No tienes citas próximas.'}
@@ -70,10 +105,10 @@ export default function History() {
         ))}
       </div>
 
-      <div className="bg-surface border border-border rounded-lg p-6 mb-5">
+      <div className="bg-surface border border-border rounded-lg p-4 sm:p-6 mb-5">
         <h2 className="text-base font-semibold mb-1 text-text">Consultas anteriores</h2>
         <p className="text-xs text-secondary mb-4">Revisa el resumen de tus consultas pasadas.</p>
-        <div className="overflow-x-auto">
+        <div className="-mx-4 sm:-mx-0 overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr>{['Fecha', 'Médico', 'Especialidad', 'Motivo', 'Estado', 'Acción'].map(h => (
@@ -108,7 +143,7 @@ export default function History() {
         </div>
       </div>
 
-      <div className="bg-surface border border-border rounded-lg p-6">
+      <div className="bg-surface border border-border rounded-lg p-4 sm:p-6">
         <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
           <div>
             <h2 className="text-base font-semibold text-text">Documentos</h2>
@@ -141,28 +176,58 @@ export default function History() {
       </div>
 
       <Dialog open={!!summaryModal} onOpenChange={() => setSummaryModal(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>Resumen de consulta</DialogTitle></DialogHeader>
           {summaryModal && (
             <div className="space-y-3">
               <div className="summary-report">
-                {[['Médico', summaryModal.doctors?.name], ['Especialidad', summaryModal.doctors?.specialty], ['Fecha', `${summaryModal.date} ${summaryModal.time}`], ['Motivo', summaryModal.reason || 'No especificado'], ['Estado', summaryModal.status === 'completed' ? 'Completada' : 'Cancelada']].map(([l, v]) => (
+                {[['Medico', summaryModal.doctors?.name], ['Especialidad', summaryModal.doctors?.specialty], ['Fecha', `${summaryModal.date} ${summaryModal.time}`], ['Motivo', summaryModal.reason || 'No especificado'], ['Estado', summaryModal.status === 'completed' ? 'Completada' : 'Cancelada']].map(([l, v]) => (
                   <div key={l as string} className="row"><span className="label">{l}</span><span className="value">{v}</span></div>
                 ))}
               </div>
-              <div>
-                <h4 className="text-xs uppercase tracking-wider text-muted mb-2">Notas y diagnóstico</h4>
-                <textarea value={summaryText} onChange={e => setSummaryText(e.target.value)} rows={4}
-                  className="w-full p-3 border border-border rounded-md text-sm font-sans resize-y box-border focus:border-primary focus:outline-none"
-                  disabled={summaryModal.status !== 'completed'}
-                  placeholder={summaryModal.status === 'completed' ? 'Agrega notas o diagnóstico aquí...' : 'Cita cancelada. No hay resumen disponible.'} />
-                <span className="text-xs text-muted mt-1 block">Los cambios se guardan automáticamente</span>
-              </div>
+
+              {summaryModal.status === 'completed' && summaryModal.summary ? (
+                <div className="bg-white border border-border rounded-md p-4 text-sm leading-relaxed whitespace-pre-wrap">
+                  {summaryModal.summary.split('|').map((line: string, i: number) => {
+                    const parts = line.split(':')
+                    if (parts.length > 1 && ['Fecha', 'Duracion', 'Medico', 'Motivo de consulta', 'Sintomas reportados', 'Indicaciones'].includes(parts[0].trim())) {
+                      return (
+                        <div key={i} className="mb-2 last:mb-0">
+                          <span className="font-semibold text-text">{parts[0].trim()}:</span>
+                          <span className="text-text ml-1">{parts.slice(1).join(':').trim()}</span>
+                        </div>
+                      )
+                    }
+                    return <p key={i} className="mb-1 text-text">{line.trim()}</p>
+                  })}
+                </div>
+              ) : null}
+
+              {summaryModal.status === 'completed' && (
+                <div>
+                  <h4 className="text-xs uppercase tracking-wider text-muted mb-2">Notas del medico</h4>
+                  <textarea value={summaryText} onChange={e => setSummaryText(e.target.value)} rows={3}
+                    className="w-full p-3 border border-border rounded-md text-sm font-sans resize-y box-border focus:border-primary focus:outline-none"
+                    placeholder="Agrega notas adicionales aqui..." />
+                  <span className="text-xs text-muted mt-1 block">Los cambios se guardan automaticamente</span>
+                </div>
+              )}
+
+              {summaryModal.status !== 'completed' && (
+                <p className="text-sm text-secondary py-4 text-center">Cita cancelada. No hay resumen disponible.</p>
+              )}
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSummaryModal(null)}>Cerrar</Button>
-            {summaryModal?.status === 'completed' && <Button onClick={saveSummaryText}>Guardar</Button>}
+            <div className="flex gap-2 w-full">
+              {summaryModal?.status === 'completed' && summaryModal.summary && (
+                <Button variant="outline" className="flex items-center gap-2" onClick={() => downloadPDF(summaryModal)}>
+                  <Download size={14} /> Descargar PDF
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => setSummaryModal(null)} className="ml-auto">Cerrar</Button>
+              {summaryModal?.status === 'completed' && <Button onClick={saveSummaryText}>Guardar</Button>}
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

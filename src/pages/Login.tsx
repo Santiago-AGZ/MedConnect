@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/api'
-import { HeartPulse } from 'lucide-react'
+import { HeartPulse, Eye, EyeOff } from 'lucide-react'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPass, setShowPass] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
@@ -37,9 +38,15 @@ export default function Login() {
           </div>
           <div>
             <label className="block text-sm font-semibold mb-1.5 text-text">Contraseña</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
-              className="w-full px-3.5 py-3 border-2 border-border rounded-md text-base focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary/15 box-border"
-              placeholder="Tu contraseña" />
+            <div className="relative flex items-center">
+              <input type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required
+                className="w-full px-3.5 py-3 pr-11 border-2 border-border rounded-md text-base focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary/15 box-border"
+                placeholder="Tu contraseña" />
+              <button type="button" onClick={() => setShowPass(!showPass)} aria-label={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-secondary p-2 rounded-md hover:bg-bg transition-colors">
+                {showPass ? <Eye size={18} /> : <EyeOff size={18} />}
+              </button>
+            </div>
           </div>
 
           {error && <p className="text-sm text-error bg-error-light p-2.5 rounded-md">{error}</p>}

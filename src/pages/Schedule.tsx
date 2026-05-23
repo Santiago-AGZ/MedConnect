@@ -26,11 +26,11 @@ export default function Schedule() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto py-8 px-6">
-      <h1 className="text-2xl font-bold mb-1 text-text">Agendar una cita</h1>
+    <div className="max-w-2xl mx-auto py-6 sm:py-8 px-4 sm:px-6">
+      <h1 className="text-xl sm:text-2xl font-bold mb-1 text-text">Agendar una cita</h1>
       <p className="text-sm text-secondary mb-6">Elige un médico y selecciona el horario que mejor te acomode.</p>
 
-      <div className="steps">
+      <div className="flex justify-center gap-1 sm:gap-2 mb-6">
         <span className="step completed"><span className="text-white text-xs">&#10003;</span></span>
         <span className="step active">2</span>
         <span className="step">3</span>
@@ -53,7 +53,7 @@ export default function Schedule() {
           </div>
         </div>
 
-        <div className="bg-surface border border-border rounded-lg p-6 mb-5">
+        <div className="bg-surface border border-border rounded-lg p-4 sm:p-6 mb-4 sm:mb-5">
           <h2 className="text-base font-semibold mb-1 text-text">Fecha y hora</h2>
           <p className="text-xs text-secondary mb-4">Selecciona el día y horario disponibles.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -73,7 +73,7 @@ export default function Schedule() {
           </div>
         </div>
 
-        <div className="bg-surface border border-border rounded-lg p-6 mb-5">
+        <div className="bg-surface border border-border rounded-lg p-4 sm:p-6 mb-4 sm:mb-5">
           <h2 className="text-base font-semibold mb-1 text-text">Motivo de la consulta</h2>
           <p className="text-xs text-secondary mb-4">Cuéntanos brevemente qué te gustaría consultar.</p>
           <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3}
