@@ -51,7 +51,9 @@ export async function getDocuments() {
 
 export async function uploadDocument(file: File, appointmentId: string | null) {
   const user = (await supabase.auth.getUser()).data.user
-  const path = `${user!.id}/${Date.now()}_${file.name}`
+  const ext = file.name.split('.').pop()
+  const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const path = `${user!.id}/${Date.now()}_${cleanName}`
   const { error: upErr } = await supabase.storage.from('documents').upload(path, file)
   if (upErr) throw upErr
   const { error } = await supabase.from('documents').insert({ user_id: user!.id, name: file.name, size: file.size, type: file.type, storage_path: path, appointment_id: appointmentId })
@@ -61,4 +63,29 @@ export async function uploadDocument(file: File, appointmentId: string | null) {
 export async function deleteDocument(id: string, storagePath: string) {
   await supabase.storage.from('documents').remove([storagePath])
   await supabase.from('documents').delete().eq('id', id)
+}
+
+export async function saveChatMessage(appointmentId: string, message: string, senderName = 'Paciente') {
+  try {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user || !appointmentId) return
+    const { error } = await supabase.from('chat_messages').insert({
+      appointment_id: appointmentId, sender_id: user.id, sender_name: senderName, message
+    })
+    if (error) console.warn('Error guardando mensaje:', error.message)
+  } catch (e) {
+    // Fail silently
+  }
+}
+
+export async function getChatMessages(appointmentId: string) {
+  try {
+    if (!appointmentId) return []
+    const { data } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('appointment_id', appointmentId)
+      .order('created_at', { ascending: true })
+    return data || []
+  } catch { return [] }
 }

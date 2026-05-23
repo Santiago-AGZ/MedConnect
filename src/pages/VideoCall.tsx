@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { completeAppointment } from '../lib/api'
-import { UserRound, Mic, MicOff, Camera, CameraOff, Lightbulb, PhoneOff, Bot, Circle, Send, Volume2 } from 'lucide-react'
+import { completeAppointment, saveChatMessage, getChatMessages } from '../lib/api'
+import { UserRound, Mic, MicOff, Camera, CameraOff, Lightbulb, PhoneOff, Bot, Circle, Send } from 'lucide-react'
 
 export default function VideoCall() {
   const localVideo = useRef<HTMLVideoElement>(null)
@@ -13,30 +13,52 @@ export default function VideoCall() {
   const [showAiChat, setShowAiChat] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const recognitionRef = useRef<any>(null)
-  const voicesLoadedRef = useRef(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
+  const [elapsed, setElapsed] = useState(0)
+  const startTimeRef = useRef(Date.now())
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chatMessages])
 
   useEffect(() => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.getVoices()
-      window.speechSynthesis.onvoiceschanged = () => { voicesLoadedRef.current = true }
+    if (lastApp?.id) {
+      getChatMessages(lastApp.id).then(msgs => {
+        if (msgs.length > 0) {
+          setChatMessages(msgs.map(m => ({ role: m.sender_id === (lastApp as any).user_id ? 'user' : 'assistant', text: m.message })))
+          setShowAiChat(true)
+        }
+      })
     }
   }, [])
+  
+  useEffect(() => {
+    startTimeRef.current = Date.now()
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000)
+    return () => clearInterval(id)
+  }, [])
+
   const [doctor, setDoctor] = useState({ name: 'Dra. María Torres', specialty: 'Medicina General' })
   const navigate = useNavigate()
   const doctorData = JSON.parse(localStorage.getItem('mc_current_doctor') || '{}')
   const lastApp = JSON.parse(localStorage.getItem('mc_last_appointment') || 'null')
+
+  const consultaContext = lastApp?.reason
+    ? `El paciente agendó esta consulta por: "${lastApp.reason}". `
+    : ''
   useEffect(() => { if (doctorData.name) setDoctor(doctorData) }, [])
 
   const startCamera = async () => {
     try {
       const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       streamRef.current = s
-      if (localVideo.current) localVideo.current.srcObject = s; setCameraOn(true)
+      setCameraOn(true)
     } catch { alert('No se pudo acceder a la cámara. Permite el acceso en tu navegador.') }
   }
+
+  useEffect(() => {
+    if (cameraOn && streamRef.current && localVideo.current) {
+      localVideo.current.srcObject = streamRef.current
+    }
+  }, [cameraOn])
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach(t => t.stop())
     streamRef.current = null; if (localVideo.current) localVideo.current.srcObject = null; setCameraOn(false)
@@ -72,12 +94,51 @@ export default function VideoCall() {
 
   const askAI = () => {
     setShowAiChat(true)
-    const questions = suggestions[doctor.specialty] || [
-      '¿Cuáles son tus principales síntomas y desde cuándo los tienes?',
-      '¿Has tenido alguna condición médica previa relacionada?',
-      '¿Hay algo que empeore o mejore tus síntomas?'
-    ]
-    setChatMessages(prev => [...prev, { role: 'assistant', text: `Preguntas sugeridas para ${doctor.name}:\n\n• ${questions.join('\n\n• ')}` }])
+    const prevMessages = chatMessages.map(m => ({
+      role: m.role === 'assistant' ? 'assistant' : 'user' as const,
+      content: m.text
+    }))
+    if (!import.meta.env.VITE_GROQ_API_KEY) {
+      const questions = suggestions[doctor.specialty] || [
+        '¿Cuáles son tus principales síntomas y desde cuándo los tienes?',
+        '¿Has tenido alguna condición médica previa relacionada?',
+        '¿Hay algo que empeore o mejore tus síntomas?'
+      ]
+      setChatMessages(prev => [...prev, { role: 'assistant', text: `Preguntas sugeridas para ${doctor.name}:\n\n• ${questions.join('\n\n• ')}` }])
+      return
+    }
+    const chatId = Date.now().toString()
+    setChatMessages(prev => [...prev, { role: 'assistant', text: 'Pensando...' }])
+    fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: import.meta.env.VITE_GROQ_MODEL || 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: `Eres un asistente médico de MedConnect. Ayudas al paciente a preparar preguntas para su médico. Solo respondes sobre salud/medicina. ${consultaContext}Sé breve, claro, en español. No diagnosticas ni recetas.` },
+          ...prevMessages.slice(-6).map(m => ({ role: m.role, content: m.text })),
+        ],
+      }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        const text = data.choices?.[0]?.message?.content || 'No entendí. Intenta de nuevo.'
+        setChatMessages(prev => {
+          const next = [...prev]
+          next[next.length - 1] = { role: 'assistant', text }
+          return next
+        })
+      })
+      .catch(() => {
+        setChatMessages(prev => {
+          const next = [...prev]
+          next[next.length - 1] = { role: 'assistant', text: `Preguntas sugeridas para ${doctor.name}:\n\n• ${questions.join('\n\n• ')}` }
+          return next
+        })
+      })
   }
 
   const toggleListening = () => {
@@ -88,7 +149,7 @@ export default function VideoCall() {
     }
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (!SpeechRecognition) {
-      setAiSuggestion('Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.')
+      setChatMessages(prev => [...prev, { role: 'assistant', text: 'Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.' }])
       setShowAiChat(true)
       return
     }
@@ -98,9 +159,8 @@ export default function VideoCall() {
     recognition.continuous = false
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript
-      setUserQuestion(transcript)
       setIsListening(false)
-      setTimeout(() => { handleAsk(transcript) }, 100)
+      handleAsk(transcript)
     }
     recognition.onerror = () => setIsListening(false)
     recognition.onend = () => setIsListening(false)
@@ -109,20 +169,66 @@ export default function VideoCall() {
     setIsListening(true)
   }
 
+  const localAnswer = (q: string): string | null => {
+    if (q.includes('hola') || q.includes('buenas') || q.includes('gracias')) return `Hola! Soy el asistente de MedConnect. Puedes preguntarme sobre síntomas, medicamentos o cualquier duda para tu consulta con ${doctor.name}.`
+    if (q.includes('fiebre') || q.includes('temperatura')) return 'Si tienes fiebre (más de 38°C), informa al médico desde cuándo y si ha bajado con medicamentos.'
+    if (q.includes('dolor')) return 'Describe al médico la ubicación del dolor, su intensidad (del 1 al 10) y si es constante o va y viene.'
+    if (q.includes('medicamento') || q.includes('pastilla') || q.includes('receta')) return 'Lleva una lista de todos los medicamentos que tomas, incluyendo dosis y horarios.'
+    if (q.includes('alergia') || q.includes('alérgico')) return 'Informa al médico sobre cualquier alergia que tengas, especialmente a medicamentos.'
+    if (q.includes('cirugía') || q.includes('operación')) return 'Menciona al médico si has tenido cirugías previas y cuándo fueron.'
+    if (q.includes('análisis') || q.includes('examen') || q.includes('resultado')) return 'Puedes subir tus resultados desde la sección de Documentos en el historial.'
+    if (q.includes('recomienda') || q.includes('consejo')) return `Tu médico te dará recomendaciones personalizadas durante la consulta.`
+    return null
+  }
+
   const handleAsk = (text?: string) => {
-    const q = (text || userQuestion).trim().toLowerCase()
-    if (!q) return
-    let answer = ''
-    if (q.includes('fiebre') || q.includes('temperatura')) answer = 'Si tienes fiebre (más de 38°C), es importante que informes al médico desde cuándo y si ha bajado con medicamentos.'
-    else if (q.includes('dolor')) answer = 'Describe al médico la ubicación del dolor, su intensidad (del 1 al 10) y si es constante o va y viene.'
-    else if (q.includes('medicamento') || q.includes('pastilla') || q.includes('receta')) answer = 'Lleva una lista de todos los medicamentos que tomas actualmente, incluyendo dosis y horarios.'
-    else if (q.includes('alergia') || q.includes('alérgico')) answer = 'Informa al médico sobre cualquier alergia que tengas, especialmente a medicamentos.'
-    else if (q.includes('cirugía') || q.includes('operación')) answer = 'Menciona al médico si has tenido cirugías previas y cuándo fueron.'
-    else if (q.includes('análisis') || q.includes('examen') || q.includes('resultado')) answer = 'Puedes subir tus resultados desde la sección de Documentos en el historial.'
-    else if (q.includes('recomienda') || q.includes('consejo')) answer = `Tu médico ${doctor.name} te dará recomendaciones personalizadas durante la consulta.`
-    else answer = `Consulta con ${doctor.name}: explica tus síntomas con claridad, desde cuándo los tienes y qué los mejora o empeora.`
-    setChatMessages(prev => [...prev, { role: 'assistant', text: answer }])
-    speak(answer)
+    const raw = (text || userQuestion).trim()
+    if (!raw) return
+    const q = raw.toLowerCase()
+    const local = localAnswer(q)
+    if (local) {
+    setChatMessages(prev => [...prev, { role: 'user', text: raw }, { role: 'assistant', text: local }])
+    setUserQuestion('')
+    if (lastApp?.id) {
+      saveChatMessage(lastApp.id, raw, 'T')
+      saveChatMessage(lastApp.id, local, 'Asistente')
+    }
+    return
+    }
+    setChatMessages(prev => [...prev, { role: 'user', text: raw }, { role: 'assistant', text: 'Pensando...' }])
+    setUserQuestion('')
+    if (lastApp?.id) saveChatMessage(lastApp.id, raw, 'T')
+    fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: import.meta.env.VITE_GROQ_MODEL || 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: `Eres un asistente médico virtual de MedConnect. Tu ÚNICO propósito es ayudar al paciente durante su consulta médica. Solo respondes preguntas relacionadas con salud, síntomas, medicamentos, exámenes médicos y preparación para consultas. ${consultaContext}Si te preguntan algo NO relacionado con salud o medicina (chistes, política, deportes, etc.), responde: "Lo siento, solo puedo ayudarte con temas de salud y medicina. ¿Tienes alguna duda sobre tu consulta?" No saludes ni hagas presentaciones extensas. Sé breve (2-3 oraciones), claro, en español. IMPORTANTE: No diagnosticas ni recetas medicamentos. Siempre sugiere consultar al médico tratante.` },
+          { role: 'user', content: `${consultaContext}Pregunta del paciente: ${raw}` },
+        ],
+      }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        const text = data.choices?.[0]?.message?.content || 'No entendí. Intenta de nuevo.'
+        setChatMessages(prev => {
+          const next = [...prev]
+          next[next.length - 1] = { role: 'assistant', text }
+          return next
+        })
+        if (lastApp?.id) saveChatMessage(lastApp.id, text, 'Asistente')
+      })
+      .catch(() => {
+        setChatMessages(prev => {
+          const next = [...prev]
+          next[next.length - 1] = { role: 'assistant', text: localAnswer(q) || `Explica tus síntomas con claridad: desde cuándo los tienes, qué los mejora o empeora, y si has tomado algo para aliviarlos.` }
+          return next
+        })
+      })
   }
 
   const endCall = () => {
@@ -179,7 +285,7 @@ export default function VideoCall() {
           <CtrlBtn onClick={toggleCamera} active={cameraOn} icon={cameraOn ? Camera : CameraOff} label={cameraOn ? 'Cámara activa' : 'Activar cámara'} />
           <CtrlBtn onClick={toggleMic} active={micOn} icon={micOn ? Mic : MicOff} label={micOn ? 'Micrófono activo' : 'Micrófono mute'} />
           <CtrlBtn onClick={askAI} icon={Bot} label="Preguntar a IA" />
-          <span className="text-xs text-secondary font-medium px-2 py-2.5">12:35</span>
+          <span className="text-xs text-secondary font-medium px-2 py-2.5">{String(Math.floor(elapsed / 60)).padStart(2, '0')}:{String(elapsed % 60).padStart(2, '0')}</span>
           <button onClick={endCall} className="px-4 py-2.5 rounded-md text-sm font-medium bg-error text-white border-none cursor-pointer flex items-center gap-2 hover:bg-red-600 transition-all active:scale-[0.95]">
             <PhoneOff size={16} /> Finalizar consulta
           </button>
@@ -197,9 +303,7 @@ export default function VideoCall() {
                   )}
                   <div className="flex-1" style={{ whiteSpace: 'pre-line' }}>{msg.text}</div>
                   {msg.role === 'assistant' && (
-                    <button onClick={() => speak(msg.text)} className="flex-shrink-0 p-1 rounded bg-transparent border-none cursor-pointer text-green-600 hover:bg-green-100 transition-colors" title="Escuchar">
-                      <Volume2 size={14} />
-                    </button>
+                    <Bot size={14} className="flex-shrink-0 mt-0.5 text-green-600" />
                   )}
                 </div>
               ))}

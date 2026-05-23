@@ -1,0 +1,33 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "username": "MedConnect",
+  "instructions": ["docs/PROYECTO.md"],
+  "command": {
+    "dev": {
+      "description": "Iniciar servidor de desarrollo",
+      "prompt": "Run npm run dev in the medconnect-app directory"
+    },
+    "build": {
+      "description": "Compilar para producción",
+      "prompt": "Run npm run build in the medconnect-app directory"
+    },
+    "deploy-supabase": {
+      "description": "Desplegar edge functions y migraciones a Supabase",
+      "prompt": "Run supabase functions deploy ai-assist and supabase db push"
+    }
+  },
+  "agent": {
+    "ux-review": {
+      "description": "Revisa el diseño UX/UI del proyecto usando las skills de diseño cargadas",
+      "mode": "subagent",
+      "permission": { "read": "allow", "edit": "deny" },
+      "prompt": "Revisa el diseño UX/UI de los archivos en src/pages/ y src/components/. Evalúa: claridad de microcopías, accesibilidad, consistencia visual, y aplicación de leyes de diseño UX. Da recomendaciones específicas."
+    },
+    "db-check": {
+      "description": "Verifica el esquema de base de datos en Supabase",
+      "mode": "subagent",
+      "permission": { "read": "allow", "edit": "deny" },
+      "prompt": "Revisa el archivo supabase/migration.sql y verifica que las tablas, relaciones y políticas RLS sean correctas para una aplicación de telemedicina."
+    }
+  }
+}
